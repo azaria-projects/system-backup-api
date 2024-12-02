@@ -1,11 +1,17 @@
 from Objects import os
+from Objects import io
+from Objects import time
 from Objects import pytz
 from Objects import shutil
+from Objects import pymysql
+from Objects import paramiko
 from Objects import datetime
+from Objects import sshtunnel
 from Objects import GoogleAuth
 from Objects import GoogleDrive
 from Objects import load_dotenv
 from Objects import Credentials
+from Objects import ServiceAccountCredentials
 
 from Commons import commons_global as globals
 
@@ -79,20 +85,18 @@ class object_backup:
     def __get_email(self) -> str:
         return self.email
     
-    def __get_gauth_credentials(self) -> Credentials:
-        return Credentials.from_service_account_info(self.__get_config(), scopes = self.__get_scope())
+    def __get_gauth_credentials(self) -> ServiceAccountCredentials:
+        return ServiceAccountCredentials.from_json_keyfile_dict(self.__get_config(), scopes = self.__get_scope())
     
-    def __get_drive(self, credentials: Credentials) -> GoogleDrive:
+    def __get_drive(self, credentials: ServiceAccountCredentials) -> GoogleDrive:
         gauth = GoogleAuth()
         gauth.credentials = credentials
 
         return GoogleDrive(gauth)
     
     def __get_backup_name(self, timezone: str = 'Asia/Jakarta') -> str:
-        today = str(datetime.now(pytz.timezone(timezone)).replace(tzinfo=None,microsecond=0)).split(' ')
-        current_date = '_'.join(today)
-
-        return current_date
+        today = str(datetime.now(pytz.timezone(timezone)).replace(tzinfo=None,microsecond=0)).replace(' ', '_').replace(':', '-')
+        return today
 
     def __get_config(self) -> dict:
         return globals.response.get_drive_service_account(
@@ -124,21 +128,145 @@ class object_backup:
             folder_id = folder['id']
 
         self.backup_folder_id = folder_id
+
+    def __set_backup_file(self, file_name: str, compression: str = 'tar') -> None:
+        file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
+        folder_to_backup = self.__get_folder_to_backup()
         
-    def __set_backup(self) -> None:
+        shutil.make_archive(file_path, compression, folder_to_backup)
+
+    def __set_temp_backup_file_removal(self, file: str) -> None:
+        if os.path.exists(file):
+            os.remove(file)
+        return
+
+    def set_backup(self, compression: str = 'tar') -> None:
         google_creds = self.__get_gauth_credentials()
         google_drive = self.__get_drive(google_creds)
-        
-        file_name = self.__get_backup_name()
-        self.__set_backup_file(file_name)
 
-        file_backup = os.path.join(self.__get_folder_temp_dir(), file_name)
-        file_metadata = globals.response.get_drive_file_format('', [{ 'id': self.__get_backup_folder_id() }])
+        file_name = self.__get_backup_name()
+        file_name_full = f'{file_name}.{compression}'
+        self.__set_backup_file(file_name, compression = compression)
+
+        file_backup = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name_full)
+        file_metadata = globals.response.get_drive_file_format(file_name_full, [{ 'id': self.__get_backup_folder_id() }])
 
         backup = google_drive.CreateFile(file_metadata)
         backup.SetContentFile(file_backup)
         backup.Upload()
 
-    def __set_backup_file(self, file_name: str, compression: str = 'tar') -> None:
-        file_path = os.path.join(self.__get_folder_temp_dir(), file_name)
-        shutil.make_archive(file_path, compression, self.__get_folder_to_backup())
+        del backup
+        self.__set_temp_backup_file_removal(file_backup)
+
+    def set_backup_sql(self, compression: str = 'tar') -> None:
+        google_creds = self.__get_gauth_credentials()
+        google_drive = self.__get_drive(google_creds)
+
+        file_name = self.__get_backup_name()
+        file_name_full = f'{file_name}_sql.{compression}'
+        self.__set_backup_file(file_name, compression = compression)
+
+        file_backup = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name_full)
+        file_metadata = globals.response.get_drive_file_format(file_name_full, [{ 'id': self.__get_backup_folder_id() }])
+
+        # backup = google_drive.CreateFile(file_metadata)
+        # backup.SetContentFile(file_backup)
+        # backup.Upload()
+
+        # del backup
+        # self.__set_temp_backup_file_removal(file_backup)
+
+class object_backup_sql:
+    def __init__(self, backup_drive: object_backup) -> None:
+        self.ssh_private_key = os.getenv("SSH_PRIVATE_KEY")
+        self.ssh_username = os.getenv("SSH_USERNAME")
+        self.ssh_host = os.getenv("SSH_HOST")
+        self.ssh_port = os.getenv("SSH_PORT")
+
+        self.db_host = os.getenv("SSH_DB_HOST")
+        self.db_port = os.getenv("SSH_DB_PORT")
+        self.db_name = os.getenv("SSH_DB_NAME")
+        self.db_username = os.getenv("SSH_DB_USERNAME")
+        self.db_password = os.getenv("SSH_DB_PASSWORD")
+
+        self.backup_drive = backup_drive
+
+        self.folder_temp_dir = os.path.join(globals.system.get_root_dir(), 'Backups', 'Database')
+        self.folder_temp_dir_server = '/tmp/mylms_stonedepot_new.sql'
+
+    def __get_backup_drive(self) -> object_backup:
+        return self.backup_drive
+
+    def __get_ssh_private_key(self) -> str:
+        return self.ssh_private_key
+    
+    def __get_ssh_username(self) -> str:
+        return self.ssh_username
+    
+    def __get_ssh_host(self) -> str:
+        return self.ssh_host
+    
+    def __get_ssh_port(self) -> str:
+        return self.ssh_port
+
+    def __get_db_host(self) -> str:
+        return self.db_port
+
+    def __get_db_port(self) -> str:
+        return self.db_host
+
+    def __get_db_name(self) -> str:
+        return self.db_name
+    
+    def __get_db_username(self) -> str:
+        return self.db_username
+
+    def __get_db_password(self) -> str:
+        return self.db_password
+
+    def __get_private_key(self) -> str:
+        return self.ssh_private_key
+    
+    def __get_folder_temp_dir(self) -> str:
+        return self.folder_temp_dir
+
+    def __get_folder_temp_dir_server(self) -> str:
+        return self.folder_temp_dir_server
+    
+    def __get_backup_name(self, timezone: str = 'Asia/Jakarta') -> str:
+        today = str(datetime.now(pytz.timezone(timezone)).replace(tzinfo=None,microsecond=0)).replace(' ', '_').replace(':', '-')
+        return today
+    
+    def __get_ssh_tunnel_conn(self) -> paramiko.SSHClient:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(self.__get_ssh_host(), username=self.__get_ssh_username(), password=self.__get_private_key())
+
+        return client
+
+    def __get_database_backup(self, server: paramiko.SSHClient) -> None:
+        file_name = f'{self.__get_backup_name()}.sql'
+        file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
+
+        sftp = server.open_sftp()
+        sftp.get(self.__get_folder_temp_dir_server(), file_path)
+        sftp.close()
+
+    def __set_server_database_backup(self, server: paramiko.SSHClient) -> None:
+        command = f"mysqldump -u {self.__get_db_username()} -p{self.__get_db_password()} {self.__get_db_name()} > {self.__get_folder_temp_dir_server()}"
+        stdin, stdout, stderr = server.exec_command(command)
+        stdout.channel.recv_exit_status()
+
+    def set_database_backup(self, await_time: int = 5) -> None:
+        server = self.__get_ssh_tunnel_conn()
+
+        self.__set_server_database_backup(server)
+        time.sleep(await_time)
+
+        self.__get_database_backup(server)
+
+        server.exec_command(f"rm {self.__get_folder_temp_dir_server()}")
+        server.close()
+
+        self.__get_backup_drive().set_backup_sql()
+

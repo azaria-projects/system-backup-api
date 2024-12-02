@@ -1,2 +1,6 @@
+#-- files to ignore
 .env
 service_account.json
+
+#-- folders to ignore
+/Tests
