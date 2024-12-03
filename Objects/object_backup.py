@@ -186,6 +186,20 @@ class object_backup:
 
         del backup_sql
         self.__set_temp_backup_file_removal(file_backup)
+    
+    def set_backup_system(self, file_name: str) -> None:
+        google_creds = self.__get_gauth_credentials()
+        google_drive = self.__get_drive(google_creds)
+
+        file_backup = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
+        file_metadata = globals.response.get_drive_file_format(file_name, [{ 'id': self.__get_backup_folder_id() }])
+
+        backup_system = google_drive.CreateFile(file_metadata)
+        backup_system.SetContentFile(file_backup)
+        backup_system.Upload()
+
+        del backup_system
+        self.__set_temp_backup_file_removal(file_backup)
 
 class object_backup_sql:
     def __init__(self, backup_drive: object_backup) -> None:
@@ -204,6 +218,19 @@ class object_backup_sql:
 
         self.folder_temp_dir = os.path.join(globals.system.get_root_dir(), 'Backups', 'Database')
         self.folder_temp_dir_server = f'/tmp/{os.getenv("SSH_DB_NAME")}_backup.sql'
+
+        self.folder_temp_dir_system = 'Backups'
+        self.folder_temp_dir_system_server = os.getenv("BACKUP_FOLDER_TARGET_SYSTEM_TEMP")
+        self.folder_temp_dir_system_server_target = os.getenv("BACKUP_FOLDER_TARGET_SYSTEM")
+
+    def __get_folder_temp_dir_system(self) -> str:
+        return self.folder_temp_dir_system
+
+    def __get_folder_temp_dir_system_server(self) -> str:
+        return self.folder_temp_dir_system_server
+    
+    def __get_folder_temp_dir_system_server_target(self) -> str:
+        return self.folder_temp_dir_system_server_target
 
     def __get_backup_drive(self) -> object_backup:
         return self.backup_drive
@@ -264,10 +291,25 @@ class object_backup_sql:
         sftp.close()
 
         return file_path
+    
+    def __get_system_backup(self, server: paramiko.SSHClient) -> str:
+        file_name = f'{self.__get_backup_name()}.tar.gz'
+        file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir_system(), file_name)
+
+        sftp = server.open_sftp()
+        sftp.get(self.__get_folder_temp_dir_system_server(), file_path)
+        sftp.close()
+
+        return file_name, file_path
 
     def __set_server_database_backup(self, server: paramiko.SSHClient) -> None:
         command = f"mysqldump -u {self.__get_db_username()} -p{self.__get_db_password()} {self.__get_db_name()} > {self.__get_folder_temp_dir_server()}"
         stdin, stdout, stderr = server.exec_command(command)
+        stdout.channel.recv_exit_status()
+
+    def __set_server_system_backup(self, server: paramiko.SSHClient) -> None:
+        compress_command = f"tar -czf {self.__get_folder_temp_dir_system_server()} -C {self.__get_folder_temp_dir_system_server_target()} ."
+        stdin, stdout, stderr = server.exec_command(compress_command)
         stdout.channel.recv_exit_status()
 
     def set_database_backup(self, await_time: int = 5) -> None:
@@ -286,3 +328,15 @@ class object_backup_sql:
         if os.path.exists(file_path):
             os.remove(file_path)
 
+    def set_system_backup(self, await_time: int = 5) -> None:
+        server = self.__get_ssh_tunnel_conn()
+
+        self.__set_server_system_backup(server)
+        time.sleep(await_time)
+
+        file_name, file_path = self.__get_system_backup(server)
+
+        server.exec_command(f"rm {self.__get_folder_temp_dir_system_server()}")
+        server.close()
+
+        self.__get_backup_drive().set_backup_system(file_name)

@@ -36,7 +36,7 @@ def check_api():
 @app.route(f'/{prefix}/set_backup', methods= ['GET'])
 def set_backup():
     try:
-        backup.set_backup()
+        backup_sql.set_system_backup()
         return globals.response.get_api_response(200, "Successfully Backed up folder!")
     
     except Exception as err:
@@ -58,7 +58,7 @@ def start_periodic_backup():
         interval = data['interval']
         interval_type = data['interval_type']
         
-        agenda.set_background_job([backup.set_backup, backup_sql.set_database_backup], interval, interval_len = interval_type)
+        agenda.set_background_job([backup_sql.set_system_backup, backup_sql.set_database_backup], interval, interval_len = interval_type)
 
         return globals.response.get_api_response(200, f"Successfully Started Periodic backup for {interval} {interval_type}!")
     
