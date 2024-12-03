@@ -4,7 +4,7 @@ FROM python:3.11-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /winbiz_backup
+WORKDIR /system_backup
 
 RUN apt-get update && apt-get install -y --no-install-recommends gcc
 
@@ -25,9 +25,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
 
-WORKDIR /winbiz_backup
+WORKDIR /system_backup
 
-COPY --from=builder /winbiz_backup /winbiz_backup
+COPY --from=builder /system_backup /system_backup
 COPY --from=builder /opt/venv /opt/venv
 
 EXPOSE 5001
