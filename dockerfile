@@ -30,6 +30,6 @@ WORKDIR /system_backup
 COPY --from=builder /system_backup /system_backup
 COPY --from=builder /opt/venv /opt/venv
 
-EXPOSE 5001
+EXPOSE 5000
 
 CMD ["gunicorn", "__init__:app", "-w", "4", "-k", "gevent", "-b", "0.0.0.0:5000"]
