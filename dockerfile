@@ -32,4 +32,4 @@ COPY --from=builder /opt/venv /opt/venv
 
 EXPOSE 5000
 
-CMD ["gunicorn", "__init__:app", "-w", "4", "-k", "gevent", "-b", "0.0.0.0:5000"]
+CMD ["gunicorn", "__init__:app", "-w", "4", "-k", "gevent", "-b", "0.0.0.0:5000", "--access-logfile", "-", "--error-logfile", "-"]
