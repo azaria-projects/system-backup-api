@@ -137,14 +137,16 @@ class object_backup:
 
         self.backup_folder_id = folder_id
 
-    def __set_backup_file(self, file_name: str, compression: str = 'tar', isDatabase: bool = False) -> None:
-        if isDatabase:
-            file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), 'Database', file_name)
-        else:
-            file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
-
+    def __set_backup_file(self, file_name: str, compression: str = 'tar') -> None:
+        file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
         folder_to_backup = self.__get_folder_to_backup()
-        
+
+        shutil.make_archive(file_path, compression, folder_to_backup)
+
+    def __set_backup_database_file(self, file_name: str, compression: str = 'tar') -> None:
+        file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), 'Database', f'{file_name}')
+        folder_to_backup = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), 'Database')
+
         shutil.make_archive(file_path, compression, folder_to_backup)
 
     def __set_temp_backup_file_removal(self, file: str) -> None:
@@ -175,7 +177,7 @@ class object_backup:
 
         file_name = self.__get_backup_database_name()
         file_name_full = f'{file_name}.{compression}'
-        self.__set_backup_file(file_name, compression = compression, isDatabase = True)
+        self.__set_backup_database_file(file_name, compression = compression)
 
         file_backup = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), 'Database', file_name_full)
         file_metadata = globals.response.get_drive_file_format(file_name_full, [{ 'id': self.__get_backup_folder_id_database() }])
