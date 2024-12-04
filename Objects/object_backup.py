@@ -278,9 +278,12 @@ class object_backup_sql:
         return today
     
     def __get_ssh_tunnel_conn(self) -> paramiko.SSHClient:
+        private_key_content = self.__get_private_key()
+        private_key_stream = io.StringIO(private_key_content)
+
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(self.__get_ssh_host(), username=self.__get_ssh_username(), password=self.__get_private_key())
+        client.connect(self.__get_ssh_host(), username=self.__get_ssh_username(), pkey=paramiko.Ed25519Key(file_obj=private_key_stream))
 
         return client
 

@@ -1,4 +1,6 @@
 import os
+import logging
+import paramiko
 
 from flask import Flask
 from flask import request
@@ -93,7 +95,13 @@ def check_periodic_backup():
 if __name__ == '__main__':
     #-- check status
     if (os.getenv("APP_STATUS") == 'development'):
-       debug = True
+        debug = True
+        
+        paramiko.util.log_to_file("paramiko.log", level=logging.DEBUG)
+
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger("paramiko")
+        logger.setLevel(logging.DEBUG)
 
     #-- run app
     app.run(host = '0.0.0.0', debug = debug)
