@@ -104,15 +104,15 @@ def check_periodic_backup():
         return globals.response.get_api_response(501, str(err))
 
 if __name__ == '__main__':
+    paramiko.util.log_to_file("paramiko.log", level=logging.DEBUG)
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("paramiko")
+    logger.setLevel(logging.DEBUG)
+
     #-- check status
     if (os.getenv("APP_STATUS") == 'development'):
         debug = True
-        
-        paramiko.util.log_to_file("paramiko.log", level=logging.DEBUG)
-
-        logging.basicConfig(level=logging.INFO)
-        logger = logging.getLogger("paramiko")
-        logger.setLevel(logging.DEBUG)
 
     #-- run app
     app.run(host = '0.0.0.0', debug = debug)
