@@ -1,4 +1,5 @@
 from . import BackgroundScheduler
+from . import CronTrigger
 from . import Callable
 from . import uuid
 
@@ -20,6 +21,17 @@ class object_scheduler:
     def get_job_status(self) -> bool:
         return self.__get_scheduler().get_jobs()
     
+    def get_background_jobs(self) -> list:
+        return [
+            {
+                'id': job.id,
+                'trigger': str(job.trigger),
+                'next_run_time': job.next_run_time.isoformat() if job.next_run_time else None,
+            } 
+            
+            for job in self.__get_scheduler().get_jobs()
+        ]
+    
     def __set_job_id(self, id: str) -> None:
         self.job_id = id
 
@@ -28,12 +40,7 @@ class object_scheduler:
 
     def set_background_job_removal(self) -> bool:
         scheduler = self.__get_scheduler()
-
-        if (self.__get_scheduler().get_jobs()):
-            scheduler.remove_all_jobs()
-            return True
-        
-        return False
+        scheduler.remove_all_jobs()
 
     def set_background_job(self, methods: list[Callable], interval: str, interval_len: str = 'days') -> None:
         scheduler = self.__get_scheduler()
@@ -49,5 +56,17 @@ class object_scheduler:
             #-- for debugging only
             scheduler.add_job(methods[0], 'interval', minutes = int(interval), max_instances=1, id = self.__get_current_job_id())
             scheduler.add_job(methods[1], 'interval', minutes = int(interval), max_instances=1, id = self.__get_current_job_sql_id())
+
+        scheduler.start()
+
+    def set_midnight_background_job(self, methods: list[Callable]) -> None:
+        scheduler = self.__get_scheduler()
+
+        self.set_background_job_removal()
+        self.__set_job_id(str(uuid.uuid4()))
+        self.__set_job_sql_id(str(uuid.uuid4()))
+
+        scheduler.add_job(methods[0], CronTrigger(hour=0, minute=0), id = self.__get_current_job_id())
+        scheduler.add_job(methods[1], CronTrigger(hour=0, minute=0), id = self.__get_current_job_sql_id())
 
         scheduler.start()

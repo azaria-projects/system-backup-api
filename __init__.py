@@ -53,9 +53,24 @@ def set_backup_database():
     except Exception as err:
         return globals.response.get_api_response(501, str(err))
 
+@app.route(f'/{prefix}/start/daily/midnight', methods= ['POST'])
+def start_periodic_midnight_backup():
+    try:
+        if len(agenda.get_background_jobs()) > 1:
+            return globals.response.get_api_response(200, "periodic backup has already been started")
+        
+        agenda.set_midnight_background_job([backup_sql.set_system_backup, backup_sql.set_database_backup])
+        return globals.response.get_api_response(200, "Successfully Backed up database!")
+    
+    except Exception as err:
+        return globals.response.get_api_response(501, str(err))
+
 @app.route(f'/{prefix}/start', methods= ['POST'])
 def start_periodic_backup():
     try:
+        if len(agenda.get_background_jobs()) > 1:
+            return globals.response.get_api_response(200, "periodic backup has already been started")
+        
         data = request.get_json()
         interval = data['interval']
         interval_type = data['interval_type']
@@ -70,12 +85,11 @@ def start_periodic_backup():
 @app.route(f'/{prefix}/stop', methods= ['POST'])
 def stop_periodic_backup():
     try:
-        response = agenda.set_background_job_removal()
-        message = "Periodic backup has not been started"
-        if (response):
-            message = "Periodic backup has been stopped"
-
-        return globals.response.get_api_response(200, message)
+        if len(agenda.get_background_jobs()) == 0:
+            return globals.response.get_api_response(200, "Periodic backup has not been started")
+        
+        agenda.set_background_job_removal()
+        return globals.response.get_api_response(200, "Periodic backup has been stopped")
     
     except Exception as err:
         return globals.response.get_api_response(501, str(err))
@@ -83,11 +97,8 @@ def stop_periodic_backup():
 @app.route(f'/{prefix}/check', methods= ['GET'])
 def check_periodic_backup():
     try:
-        message = f'Periodic backup has not been started'
-        if (agenda.get_job_status()):
-            message = f'Periodic backup has started'
-
-        return globals.response.get_api_response(200, message)
+        jobs = agenda.get_background_jobs()
+        return globals.response.get_api_response(200, jobs)
     
     except Exception as err:
         return globals.response.get_api_response(501, str(err))
