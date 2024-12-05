@@ -335,14 +335,14 @@ class object_backup_sql:
 
     def set_system_backup(self, await_time: int = 5) -> None:
         server = self.__get_ssh_tunnel_conn()
-        print('----- CONNECTED TO HOST SERVER -----')
+        # print('----- CONNECTED TO HOST SERVER -----')
 
         self.__set_server_system_backup(server)
         time.sleep(await_time)
-        print('----- BACKUP CREATED -----')
+        # print('----- BACKUP CREATED -----')
 
         file_name, file_path = self.__get_system_backup(server)
-        print('----- BACKUP DOWNLOADED -----')
+        # print('----- BACKUP DOWNLOADED -----')
 
         file_temp = self.__get_folder_temp_dir_system_server()
         if file_temp != os.getenv("BACKUP_FOLDER_TARGET_SYSTEM"):
