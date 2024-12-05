@@ -60,7 +60,7 @@ def start_periodic_midnight_backup():
             return globals.response.get_api_response(200, "periodic backup has already been started")
         
         agenda.set_midnight_background_job([backup_sql.set_system_backup, backup_sql.set_database_backup])
-        return globals.response.get_api_response(200, "Successfully Backed up database!")
+        return globals.response.get_api_response(200, "Successfully Started Periodic backup every midnight!")
     
     except Exception as err:
         return globals.response.get_api_response(501, str(err))
