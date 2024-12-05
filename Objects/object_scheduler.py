@@ -2,6 +2,7 @@ from . import BackgroundScheduler
 from . import CronTrigger
 from . import Callable
 from . import uuid
+from . import pytz
 
 class object_scheduler:
     def __init__(self) -> None:
@@ -56,6 +57,18 @@ class object_scheduler:
             #-- for debugging only
             scheduler.add_job(methods[0], 'interval', minutes = int(interval), max_instances=1, id = self.__get_current_job_id())
             scheduler.add_job(methods[1], 'interval', minutes = int(interval), max_instances=1, id = self.__get_current_job_sql_id())
+
+        scheduler.start()
+
+    def set_background_with_specific_date_job(self, methods: list[Callable], hour: int) -> None:
+        scheduler = self.__get_scheduler()
+
+        self.set_background_job_removal()
+        self.__set_job_id(str(uuid.uuid4()))
+        self.__set_job_sql_id(str(uuid.uuid4()))
+
+        scheduler.add_job(methods[0], CronTrigger(hour = hour, minute = 0, timezone = pytz.timezone('Asia/Jakarta')), id = self.__get_current_job_id())
+        scheduler.add_job(methods[1], CronTrigger(hour = hour, minute = 0, timezone = pytz.timezone('Asia/Jakarta')), id = self.__get_current_job_sql_id())
 
         scheduler.start()
 

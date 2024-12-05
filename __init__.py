@@ -64,6 +64,18 @@ def start_periodic_midnight_backup():
     
     except Exception as err:
         return globals.response.get_api_response(501, str(err))
+    
+@app.route(f'/{prefix}/start/daily/<int:hour>', methods= ['POST'])
+def start_periodic_daily_backup(hour: int):
+    try:
+        if len(agenda.get_background_jobs()) > 1:
+            return globals.response.get_api_response(200, "periodic backup has already been started")
+        
+        agenda.set_background_with_specific_date_job([backup_sql.set_system_backup, backup_sql.set_database_backup], int(hour))
+        return globals.response.get_api_response(200, f'Successfully started daily backup at {hour}:00 WIB ! Please wait and check the job before stopping any jobs')
+    
+    except Exception as err:
+        return globals.response.get_api_response(501, str(err))
 
 @app.route(f'/{prefix}/start', methods= ['POST'])
 def start_periodic_backup():
