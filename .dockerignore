@@ -1,4 +1,9 @@
 #-- files to ignore
+__pycache__
+*.pyc
+*.pyo
+.git
+.vscode
 .env
 service_account.json
 
