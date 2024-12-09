@@ -56,3 +56,28 @@ class commons_response:
             "client_x509_cert_url": client_cert_url,
             "universe_domain": universe_domain
         }
+    
+    @staticmethod
+    def get_oauth_creds(
+        token: str, 
+        refresh_token: str, 
+        token_uri: str,
+        client_id: str, 
+        client_secret: str,
+        scopes: str, 
+        universe_domain: str,
+        account: str, 
+        expiry: str,
+    ) -> dict:
+        
+        return {
+            "token": token, 
+            "refresh_token": refresh_token, 
+            "token_uri": token_uri, 
+            "client_id": client_id, 
+            "client_secret": client_secret, 
+            "scopes": [scopes], 
+            "universe_domain": universe_domain, 
+            "account": account, 
+            "expiry": expiry
+        }

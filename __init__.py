@@ -25,7 +25,10 @@ backup = system_backup.object_backup(
     os.getenv("BACKUP_FOLDER_ID_DATABASE"), 
     os.getenv("BACKUP_FOLDER_TARGET")
 )
+
 backup_sql = system_backup.object_backup_sql(backup)
+
+agenda.set_oauth_background_job(backup.set_new_oauth_access_token)
 
 @app.route(f'/{prefix}', methods= ['GET'])
 def check_api():
@@ -100,7 +103,7 @@ def stop_periodic_backup():
         if len(agenda.get_background_jobs()) == 0:
             return globals.response.get_api_response(200, "Periodic backup has not been started")
         
-        agenda.set_background_job_removal()
+        agenda.set_backup_background_job_removal()
         return globals.response.get_api_response(200, "Periodic backup has been stopped")
     
     except Exception as err:
@@ -111,6 +114,15 @@ def check_periodic_backup():
     try:
         jobs = agenda.get_background_jobs()
         return globals.response.get_api_response(200, jobs)
+    
+    except Exception as err:
+        return globals.response.get_api_response(501, str(err))
+    
+@app.route(f'/{prefix}/refresh_oauth_token', methods= ['GET'])
+def refresh_oauth_token():
+    try:
+        backup.set_new_oauth_access_token()
+        return globals.response.get_api_response(200, 'Token has been renewed!')
     
     except Exception as err:
         return globals.response.get_api_response(501, str(err))

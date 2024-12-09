@@ -10,11 +10,18 @@ from Objects import sshtunnel
 from Objects import GoogleAuth
 from Objects import GoogleDrive
 from Objects import load_dotenv
-from Objects import Credentials
 from Objects import ServiceAccountCredentials
+
+from Objects import dotenv
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
 from Commons import commons_global as globals
 
+#-- load env
 load_dotenv(override=True)
 
 class object_backup:
@@ -120,6 +127,38 @@ class object_backup:
             self.__get_client_cert_url(),
             self.__get_universe_domain()
         )
+    
+    def __get_oauth_creds(self) -> Credentials:
+        credentials = Credentials.from_authorized_user_info(self.__get_oauth_creds_config())
+        credentials.refresh(Request())
+
+        self.__set_oauth_creds_config(credentials)
+
+        return credentials
+    
+    def __get_oauth_creds_config(self) -> dict:
+        return globals.response.get_oauth_creds(
+            os.getenv("CREDS_AUTH_TOKEN"), 
+            os.getenv("CREDS_REFRESH_TOKEN"), 
+            os.getenv("CREDS_AUTH_TOKEN_URI"), 
+            os.getenv("CREDS_AUTH_CLIENT_ID"), 
+            os.getenv("CREDS_AUTH_CLIENT_SECRETS"), 
+            os.getenv("CREDS_AUTH_SCOPES"), 
+            os.getenv("CREDS_AUTH_UNIVERSE_DOMAIN"), 
+            os.getenv("CREDS_AUTH_ACCOUNT"), 
+            os.getenv("CREDS_AUTH_TOKEN_EXPIRY")
+        )
+    
+    def __set_oauth_creds_config(self, creds: Credentials, env_path: str = '.env') -> None:
+        dotenv.set_key(env_path, "CREDS_AUTH_TOKEN", str(creds.token))
+        dotenv.set_key(env_path, "CREDS_REFRESH_TOKEN", str(creds.refresh_token))
+        dotenv.set_key(env_path, "CREDS_AUTH_TOKEN_URI", str(creds.token_uri))
+        dotenv.set_key(env_path, "CREDS_AUTH_CLIENT_ID", str(creds.client_id))
+        dotenv.set_key(env_path, "CREDS_AUTH_CLIENT_SECRETS", str(creds.client_secret))
+        dotenv.set_key(env_path, "CREDS_AUTH_SCOPES", str(creds.scopes[0]))
+        dotenv.set_key(env_path, "CREDS_AUTH_UNIVERSE_DOMAIN", str(creds.universe_domain))
+        dotenv.set_key(env_path, "CREDS_AUTH_ACCOUNT", str(creds.account))
+        dotenv.set_key(env_path, "CREDS_AUTH_TOKEN_EXPIRY", str(creds.expiry))
 
     def __set_backup_folder_id(self, folder_id: str, folder_name: str) -> dict:
         if self.__get_backup_folder_id():
@@ -202,6 +241,54 @@ class object_backup:
 
         del backup_system
         self.__set_temp_backup_file_removal(file_backup)
+
+    def set_oauth_backup_system(self, file_name: str) -> None:
+        creds = Credentials.from_authorized_user_info(self.__get_oauth_creds_config())
+        creds.refresh(Request())
+
+        self.__set_oauth_creds_config(creds)
+    
+        drive_service = build('drive', 'v3', credentials = creds)
+        
+        file_backup = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
+        file_metadata = {            
+            'name': file_name, 
+            'parents': [self.__get_backup_folder_id()]
+        }
+
+        file_media = MediaFileUpload(file_backup, resumable=True)
+
+        file = drive_service.files().create(body = file_metadata, media_body = file_media, fields = 'id').execute()
+    
+    def set_oauth_backup_database(self, compression: str = 'tar') -> str:
+        creds = Credentials.from_authorized_user_info(self.__get_oauth_creds_config())
+        creds.refresh(Request())
+
+        self.__set_oauth_creds_config(creds)
+    
+        drive_service = build('drive', 'v3', credentials = creds)
+
+        file_name = self.__get_backup_database_name()
+        file_name_full = f'{file_name}.{compression}'
+        self.__set_backup_database_file(file_name, compression = compression)
+
+        file_backup = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), 'Database', file_name_full)
+        file_metadata = {            
+            'name': file_name_full, 
+            'parents': [self.__get_backup_folder_id_database()]
+        }
+
+        file_media = MediaFileUpload(file_backup, resumable=True)
+
+        file = drive_service.files().create(body = file_metadata, media_body = file_media, fields = 'id').execute()
+
+        return file_backup
+    
+    def set_new_oauth_access_token(self) -> None:
+        creds = Credentials.from_authorized_user_info(self.__get_oauth_creds_config())
+        creds.refresh(Request())
+
+        self.__set_oauth_creds_config(creds)
 
 class object_backup_sql:
     def __init__(self, backup_drive: object_backup) -> None:
@@ -317,7 +404,7 @@ class object_backup_sql:
         stdin, stdout, stderr = server.exec_command(compress_command)
         stdout.channel.recv_exit_status()
 
-    def set_database_backup(self, await_time: int = 5) -> None:
+    def set_database_backup(self, await_time: int = 5) -> None:   
         server = self.__get_ssh_tunnel_conn()
 
         self.__set_server_database_backup(server)
@@ -328,21 +415,20 @@ class object_backup_sql:
         server.exec_command(f"rm {self.__get_folder_temp_dir_server()}")
         server.close()
 
-        self.__get_backup_drive().set_backup_sql()
-        
-        if os.path.exists(file_path):
+        # self.__get_backup_drive().set_backup_sql()
+        file_compress = self.__get_backup_drive().set_oauth_backup_database()
+
+        if (os.path.exists(file_path) and os.path.exists(file_compress)):
+            os.remove(file_compress)
             os.remove(file_path)
 
     def set_system_backup(self, await_time: int = 5) -> None:
         server = self.__get_ssh_tunnel_conn()
-        # print('----- CONNECTED TO HOST SERVER -----')
 
         self.__set_server_system_backup(server)
         time.sleep(await_time)
-        # print('----- BACKUP CREATED -----')
 
         file_name, file_path = self.__get_system_backup(server)
-        # print('----- BACKUP DOWNLOADED -----')
 
         file_temp = self.__get_folder_temp_dir_system_server()
         if file_temp != os.getenv("BACKUP_FOLDER_TARGET_SYSTEM"):
@@ -350,4 +436,8 @@ class object_backup_sql:
             
         server.close()
 
-        self.__get_backup_drive().set_backup_system(file_name)
+        # self.__get_backup_drive().set_backup_system(file_name)
+        self.__get_backup_drive().set_oauth_backup_system(file_name)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)

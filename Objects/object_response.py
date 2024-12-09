@@ -1,3 +1,5 @@
+from Objects import datetime
+
 class object_response:
     @staticmethod
     def get_api_response(response: int, message: str) -> dict:
@@ -28,6 +30,12 @@ class object_response:
             'parents': folder_parents_id
         }
     
+    def get_creds_drive_file_format(title: str, folder_parents_id: list) -> dict:
+        return {
+            'name': title, 
+            'parents': folder_parents_id
+        }
+    
     @staticmethod
     def get_drive_service_account(
         type: str, 
@@ -55,4 +63,29 @@ class object_response:
             "auth_provider_x509_cert_url": auth_provider_cert_url,
             "client_x509_cert_url": client_cert_url,
             "universe_domain": universe_domain
+        }
+    
+    @staticmethod
+    def get_oauth_creds(
+        token: str, 
+        refresh_token: str, 
+        token_uri: str,
+        client_id: str, 
+        client_secret: str,
+        scopes: str, 
+        universe_domain: str,
+        account: str, 
+        expiry: datetime,
+    ) -> dict:
+        
+        return {
+            "token": token, 
+            "refresh_token": refresh_token, 
+            "token_uri": token_uri, 
+            "client_id": client_id, 
+            "client_secret": client_secret, 
+            "scopes": [scopes], 
+            "universe_domain": universe_domain, 
+            "account": account, 
+            "expiry": expiry.replace(' ', 'T') + 'Z'
         }

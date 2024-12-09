@@ -4,7 +4,9 @@ __pycache__
 *.pyo
 .git
 .vscode
-.env
+*.env
+credentials.json
+token.json
 service_account.json
 
 #-- folders to ignore
