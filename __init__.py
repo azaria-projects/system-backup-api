@@ -100,9 +100,6 @@ def start_periodic_backup():
 @app.route(f'/{prefix}/stop', methods= ['POST'])
 def stop_periodic_backup():
     try:
-        if len(agenda.get_background_jobs()) == 0:
-            return globals.response.get_api_response(200, "Periodic backup has not been started")
-        
         agenda.set_backup_background_job_removal()
         return globals.response.get_api_response(200, "Periodic backup has been stopped")
     
