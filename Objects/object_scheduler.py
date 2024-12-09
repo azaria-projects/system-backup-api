@@ -109,8 +109,8 @@ class object_scheduler:
     def set_midnight_background_job(self, methods: list[Callable]) -> None:
         scheduler = self.__get_scheduler()
 
-        self.set_background_job_removal(self.__get_current_job_id())
-        self.set_background_job_removal(self.__get_current_job_sql_id())
+        self.__set_background_job_removal(self.__get_current_job_id())
+        self.__set_background_job_removal(self.__get_current_job_sql_id())
 
         self.__set_job_id(str(uuid.uuid4()))
         self.__set_job_sql_id(str(uuid.uuid4()))
