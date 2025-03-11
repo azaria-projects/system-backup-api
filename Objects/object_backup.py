@@ -303,10 +303,15 @@ class object_backup_sql:
         self.db_username = os.getenv("SSH_DB_USERNAME")
         self.db_password = os.getenv("SSH_DB_PASSWORD")
 
+        self.db_name_2 = os.getenv("SSH_DB_NAME_2")
+        self.db_username_2 = os.getenv("SSH_DB_USERNAME_2")
+        self.db_password_2 = os.getenv("SSH_DB_PASSWORD_2")
+
         self.backup_drive = backup_drive
 
         self.folder_temp_dir = os.path.join(globals.system.get_root_dir(), 'Backups', 'Database')
         self.folder_temp_dir_server = f'/tmp/{os.getenv("SSH_DB_NAME")}_backup.sql'
+        self.folder_temp_dir_server_2 = f'/tmp/{os.getenv("SSH_DB_NAME_2")}_backup.sql'
 
         self.folder_temp_dir_system = 'Backups'
         self.folder_temp_dir_system_server = os.getenv("BACKUP_FOLDER_TARGET_SYSTEM_TEMP")
@@ -341,6 +346,15 @@ class object_backup_sql:
 
     def __get_db_port(self) -> str:
         return self.db_host
+    
+    def __get_db_name_2(self) -> str:
+        return self.db_name_2
+    
+    def __get_db_username_2(self) -> str:
+        return self.db_username_2
+
+    def __get_db_password_2(self) -> str:
+        return self.db_password_2
 
     def __get_db_name(self) -> str:
         return self.db_name
@@ -360,6 +374,9 @@ class object_backup_sql:
     def __get_folder_temp_dir_server(self) -> str:
         return self.folder_temp_dir_server
     
+    def __get_folder_temp_dir_server_2(self) -> str:
+        return self.folder_temp_dir_server_2
+
     def __get_backup_name(self, timezone: str = 'Asia/Jakarta') -> str:
         today = str(datetime.now(pytz.timezone(timezone)).replace(tzinfo=None,microsecond=0)).replace(' ', '_').replace(':', '-')
         return today
@@ -374,28 +391,64 @@ class object_backup_sql:
 
         return client
 
-    def __get_database_backup(self, server: paramiko.SSHClient) -> str:
-        file_name = f'{self.__get_backup_name()}.sql'
+    def __get_database_backup(self, db_no: int, server: paramiko.SSHClient) -> str:
+        if db_no == 1:
+            file_name = f'{self.__get_backup_name()}_{self.__get_db_name()}.sql'
+        elif db_no == 2:
+            file_name = f'{self.__get_backup_name()}_{self.__get_db_name_2()}.sql'
+            
         file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
+        remote_path = self.__get_folder_temp_dir_server()
 
-        sftp = server.open_sftp()
-        sftp.get(self.__get_folder_temp_dir_server(), file_path)
-        sftp.close()
+        server.get_transport().set_keepalive(30)
+
+        with server.open_sftp() as sftp, open(file_path, 'wb') as f:
+            file_size = sftp.stat(remote_path).st_size
+            with sftp.file(remote_path, 'rb') as remote_file:
+                chunk_size = 32768
+                bytes_read = 0
+                
+                while True:
+                    data = remote_file.read(chunk_size)
+                    if not data:
+                        break
+
+                    f.write(data)
+                    bytes_read += len(data)
+                    print(f"Retrieving Database Backup, Downloaded {bytes_read} out of {file_size} bytes", end="\r")
 
         return file_path
     
     def __get_system_backup(self, server: paramiko.SSHClient) -> str:
         file_name = f'{self.__get_backup_name()}.tar.gz'
-        file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir_system(), file_name)
+        local_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir_system(), file_name)
+        remote_path = self.__get_folder_temp_dir_system_server()
 
-        sftp = server.open_sftp()
-        sftp.get(self.__get_folder_temp_dir_system_server(), file_path)
-        sftp.close()
+        server.get_transport().set_keepalive(30)
+        
+        with server.open_sftp() as sftp, open(local_path, 'wb') as f:
+            file_size = sftp.stat(remote_path).st_size
+            with sftp.file(remote_path, 'rb') as remote_file:
+                chunk_size = 32768
+                bytes_read = 0
+                
+                while True:
+                    data = remote_file.read(chunk_size)
+                    if not data:
+                        break
 
-        return file_name, file_path
+                    f.write(data)
+                    bytes_read += len(data)
+                    print(f"Retrieving System Backup, Downloaded {bytes_read} out of {file_size} bytes", end="\r")
 
-    def __set_server_database_backup(self, server: paramiko.SSHClient) -> None:
-        command = f"mysqldump -u {self.__get_db_username()} -p{self.__get_db_password()} {self.__get_db_name()} > {self.__get_folder_temp_dir_server()}"
+        return file_name, local_path
+
+    def __set_server_database_backup(self, db_no: int, server: paramiko.SSHClient) -> None:
+        if db_no == 1:
+            command = f"mysqldump -u {self.__get_db_username()} -p{self.__get_db_password()} {self.__get_db_name()} > {self.__get_folder_temp_dir_server()}"
+        elif db_no == 2:
+            command = f"mysqldump -u {self.__get_db_username_2()} -p{self.__get_db_password_2()} {self.__get_db_name_2()} > {self.__get_folder_temp_dir_server_2()}"
+
         stdin, stdout, stderr = server.exec_command(command)
         stdout.channel.recv_exit_status()
 
@@ -407,37 +460,47 @@ class object_backup_sql:
     def set_database_backup(self, await_time: int = 5) -> None:   
         server = self.__get_ssh_tunnel_conn()
 
-        self.__set_server_database_backup(server)
+        self.__set_server_database_backup(1, server)
         time.sleep(await_time)
 
-        file_path = self.__get_database_backup(server)
+        self.__set_server_database_backup(2, server)
+        time.sleep(await_time)
+
+        file_path = self.__get_database_backup(1, server)
+        file_path_2 = self.__get_database_backup(2, server)
 
         server.exec_command(f"rm {self.__get_folder_temp_dir_server()}")
+        server.exec_command(f"rm {self.__get_folder_temp_dir_server_2()}")
+
         server.close()
 
-        # self.__get_backup_drive().set_backup_sql()
         file_compress = self.__get_backup_drive().set_oauth_backup_database()
 
-        if (os.path.exists(file_path) and os.path.exists(file_compress)):
-            os.remove(file_compress)
+        if (os.path.exists(file_path)):
             os.remove(file_path)
 
+        if (os.path.exists(file_path_2)):
+            os.remove(file_path_2)
+
+        if (os.path.exists(file_compress)):
+            os.remove(file_compress)
+
     def set_system_backup(self, await_time: int = 5) -> None:
+        #-- first connection: compress backup folder
         server = self.__get_ssh_tunnel_conn()
-
         self.__set_server_system_backup(server)
-        time.sleep(await_time)
+        server.close()
 
+        #-- second connection: download compressed file
+        server = self.__get_ssh_tunnel_conn()
         file_name, file_path = self.__get_system_backup(server)
-
         file_temp = self.__get_folder_temp_dir_system_server()
+
         if file_temp != os.getenv("BACKUP_FOLDER_TARGET_SYSTEM"):
             server.exec_command(f"rm {file_temp}")
             
         server.close()
 
-        # self.__get_backup_drive().set_backup_system(file_name)
         self.__get_backup_drive().set_oauth_backup_system(file_name)
-
         if os.path.exists(file_path):
             os.remove(file_path)

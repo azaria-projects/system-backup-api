@@ -130,13 +130,13 @@ def refresh_oauth_token():
 if __name__ == '__main__':
     #-- check status
     if (os.getenv("APP_STATUS") == 'development'):
-        paramiko.util.log_to_file("paramiko.log", level=logging.DEBUG)
+        debug = True
 
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger("paramiko")
         logger.setLevel(logging.DEBUG)
 
-        debug = True
+    paramiko.util.log_to_file("paramiko.log", level=logging.DEBUG)
 
     #-- run app
     app.run(host = '0.0.0.0', debug = debug)
