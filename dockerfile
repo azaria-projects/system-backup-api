@@ -9,6 +9,7 @@ WORKDIR /system_backup
 RUN apt-get update && apt-get install -y --no-install-recommends gcc openssh-client ssh libssl-dev
 
 COPY requirements.txt .
+COPY .env.example .env
 
 RUN python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
