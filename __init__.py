@@ -60,7 +60,7 @@ def set_backup_database():
 def start_periodic_midnight_backup():
     try:
         if len(agenda.get_backup_jobs()) > 1:
-            return globals.response.get_api_response(200, "periodic backup has already been started")
+            return globals.response.get_api_response(200, "Periodic backup has already been started")
         
         agenda.set_background_with_specific_date_job([backup_sql.set_system_backup, backup_sql.set_database_backup], 0)
         return globals.response.get_api_response(200, "Successfully started periodic backup every midnight! Please wait and check the job before stopping any jobs")
@@ -72,7 +72,7 @@ def start_periodic_midnight_backup():
 def start_periodic_daily_backup(hour: int):
     try:
         if len(agenda.get_backup_jobs()) > 1:
-            return globals.response.get_api_response(200, "periodic backup has already been started")
+            return globals.response.get_api_response(200, "Periodic backup has already been started")
         
         agenda.set_background_with_specific_date_job([backup_sql.set_system_backup, backup_sql.set_database_backup], int(hour))
         return globals.response.get_api_response(200, f'Successfully started daily backup at {hour}:00 WIB ! Please wait and check the job before stopping any jobs')
@@ -84,7 +84,7 @@ def start_periodic_daily_backup(hour: int):
 def start_periodic_backup():
     try:
         if len(agenda.get_backup_jobs()) > 1:
-            return globals.response.get_api_response(200, "periodic backup has already been started! Please wait and check the job before stopping any jobs")
+            return globals.response.get_api_response(200, "Periodic backup has already been started! Please wait and check the job before stopping any jobs")
         
         data = request.get_json()
         interval = data['interval']
@@ -101,7 +101,7 @@ def start_periodic_backup():
 def stop_periodic_backup():
     try:
         if len(agenda.get_backup_jobs()) == 0:
-            return globals.response.get_api_response(200, "periodic backup has not started!")
+            return globals.response.get_api_response(200, "Periodic backup has not started!")
         
         agenda.set_backup_background_job_removal()
         return globals.response.get_api_response(200, "Periodic backup has been stopped")

@@ -73,8 +73,11 @@ class object_scheduler:
         self.__set_background_job_removal(self.__get_current_job_id())
         self.__set_background_job_removal(self.__get_current_job_sql_id())
 
-        self.__set_job_id(str(uuid.uuid4()))
-        self.__set_job_sql_id(str(uuid.uuid4()))
+        if not self.__get_current_job_id():
+            self.__set_job_id(str(uuid.uuid4()))
+
+        if not self.__get_current_job_sql_id():
+            self.__set_job_sql_id(str(uuid.uuid4()))
     
     def set_backup_background_job_removal(self) -> bool:
         self.__set_background_job_removal(self.__get_current_job_id())
@@ -87,7 +90,9 @@ class object_scheduler:
             scheduler.start()
 
         self.__set_background_job_removal(self.__get_current_job_oauth_id())
-        self.__set_job_oauth_id(str(uuid.uuid4()))
+
+        if not self.__get_current_job_oauth_id():
+            self.__set_job_oauth_id(str(uuid.uuid4()))
 
         scheduler.add_job(methods, 'interval', minutes = 45, max_instances=1, id = self.__get_current_job_oauth_id())
 
