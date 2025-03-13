@@ -394,11 +394,12 @@ class object_backup_sql:
     def __get_database_backup(self, db_no: int, server: paramiko.SSHClient) -> str:
         if db_no == 1:
             file_name = f'{self.__get_backup_name()}_{self.__get_db_name()}.sql'
+            remote_path = self.__get_folder_temp_dir_server()
         elif db_no == 2:
             file_name = f'{self.__get_backup_name()}_{self.__get_db_name_2()}.sql'
+            remote_path = self.__get_folder_temp_dir_server_2()
             
         file_path = os.path.join(globals.system.get_root_dir(), self.__get_folder_temp_dir(), file_name)
-        remote_path = self.__get_folder_temp_dir_server()
 
         server.get_transport().set_keepalive(30)
 
@@ -461,10 +462,7 @@ class object_backup_sql:
         server = self.__get_ssh_tunnel_conn()
 
         self.__set_server_database_backup(1, server)
-        time.sleep(await_time)
-
         self.__set_server_database_backup(2, server)
-        time.sleep(await_time)
 
         file_path = self.__get_database_backup(1, server)
         file_path_2 = self.__get_database_backup(2, server)

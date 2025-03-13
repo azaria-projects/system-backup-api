@@ -5,6 +5,7 @@ __pycache__
 .git
 .vscode
 *.env
+*.log
 credentials.json
 token.json
 service_account.json
